@@ -37,11 +37,12 @@ export default function HomePage() {
     category: CATEGORIES.includes(filter) ? filter : undefined,
     mine: filter === "我的" || undefined,
   };
-  // 定位从 pending 变 denied 时查询条件不变，靠 queryKey 避免重复请求
   const queryKey = `${baseParams.lng ?? ""},${baseParams.lat ?? ""}|${filter}`;
   const activeKey = useRef("");
 
   useEffect(() => {
+    // 等定位有结果（成功或拒绝）再发首个请求：有坐标只带坐标请求一次，被拒绝才发无坐标请求
+    if (geo.status === "pending") return;
     if (activeKey.current === queryKey) return;
     activeKey.current = queryKey;
     setItems(null);
@@ -59,7 +60,7 @@ export default function HomePage() {
         setError(e.message);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey]);
+  }, [queryKey, geo.status]);
 
   const loadMoreRef = useRef<() => void>(() => {});
   loadMoreRef.current = () => {
