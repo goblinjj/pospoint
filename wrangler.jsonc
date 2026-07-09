@@ -11,8 +11,7 @@
     {
       "binding": "DB",
       "database_name": "pospoint",
-      // 部署前运行 `npx wrangler d1 create pospoint`，把输出的 database_id 填到这里
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "72fa835b-efb9-4f51-81a1-8f8582e404c7"
     }
   ],
   "r2_buckets": [
