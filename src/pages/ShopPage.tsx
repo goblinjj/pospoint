@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, photoUrl, fmtDate, type ShopDetail } from "../api";
 import { compressImage } from "../image";
-import { Stars, useUser } from "../App";
+import { Score, ScorePicker, useUser } from "../App";
 
 export default function ShopPage() {
   const { id } = useParams();
@@ -10,6 +10,7 @@ export default function ShopPage() {
   const { user } = useUser();
   const [data, setData] = useState<ShopDetail | null>(null);
   const [error, setError] = useState("");
+  const [editingReview, setEditingReview] = useState<number | null>(null);
 
   const load = useCallback(() => {
     api
@@ -30,6 +31,7 @@ export default function ShopPage() {
 
   const { shop, reviews, photos } = data;
   const hasCoords = shop.lng !== null && shop.lat !== null;
+  const canEditShop = shop.created_by === user.id || user.isAdmin;
   const encName = encodeURIComponent(shop.name);
 
   // 高德 URI API：手机上会直接唤起高德 App，没装则打开网页版
@@ -63,6 +65,15 @@ export default function ShopPage() {
         <button className="back-btn" onClick={() => nav(-1)}>
           ‹ 返回
         </button>
+        {canEditShop && (
+          <button
+            className="topbar-link"
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer" }}
+            onClick={() => nav(`/shop/${shop.id}/edit`)}
+          >
+            编辑
+          </button>
+        )}
       </header>
 
       <div className="page">
@@ -73,8 +84,7 @@ export default function ShopPage() {
             <span className="cat-label">{shop.category}</span>
             {shop.avg_rating !== null ? (
               <>
-                <Stars rating={shop.avg_rating} />
-                <span className="rating-num">{shop.avg_rating.toFixed(1)}</span>
+                <Score value={shop.avg_rating} />
                 <span className="hint">{shop.review_count} 条评价</span>
               </>
             ) : (
@@ -125,11 +135,29 @@ export default function ShopPage() {
         {reviews.length === 0 && <p className="hint">还没有评价。</p>}
         {reviews.map((r) => {
           const rPhotos = photos.filter((p) => p.review_id === r.id);
+          const mine = r.user_id === user.id;
+
+          if (editingReview === r.id) {
+            return (
+              <ReviewEditor
+                key={r.id}
+                initialRating={r.rating}
+                initialContent={r.content}
+                onCancel={() => setEditingReview(null)}
+                onSave={async (rating, content) => {
+                  await api.updateReview(r.id, { rating, content });
+                  setEditingReview(null);
+                  load();
+                }}
+              />
+            );
+          }
+
           return (
             <div key={r.id} className="review">
               <div className="head">
                 <span className="who">{r.nickname}</span>
-                <Stars rating={r.rating} />
+                <Score value={r.rating} />
                 <span className="when">{fmtDate(r.created_at)}</span>
               </div>
               {r.content && <p className="content">{r.content}</p>}
@@ -142,23 +170,30 @@ export default function ShopPage() {
                   ))}
                 </div>
               )}
-              {(r.user_id === user.id || user.isAdmin) && (
-                <button
-                  className="btn danger-link"
-                  onClick={async () => {
-                    if (!confirm("删除这条评价？")) return;
-                    await api.deleteReview(r.id).catch(() => {});
-                    load();
-                  }}
-                >
-                  删除
-                </button>
+              {(mine || user.isAdmin) && (
+                <div className="review-actions">
+                  {mine && (
+                    <button className="btn danger-link" style={{ color: "var(--ink)" }} onClick={() => setEditingReview(r.id)}>
+                      编辑
+                    </button>
+                  )}
+                  <button
+                    className="btn danger-link"
+                    onClick={async () => {
+                      if (!confirm("删除这条评价？")) return;
+                      await api.deleteReview(r.id).catch(() => {});
+                      load();
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
               )}
             </div>
           );
         })}
 
-        {(shop.created_by === user.id || user.isAdmin) && (
+        {canEditShop && (
           <div style={{ textAlign: "center", marginTop: 24 }}>
             <button className="btn danger-link" onClick={deleteShop}>
               删除这家店
@@ -167,6 +202,57 @@ export default function ShopPage() {
         )}
       </div>
     </>
+  );
+}
+
+function ReviewEditor({
+  initialRating,
+  initialContent,
+  onSave,
+  onCancel,
+}: {
+  initialRating: number;
+  initialContent: string;
+  onSave: (rating: number, content: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [rating, setRating] = useState(initialRating);
+  const [content, setContent] = useState(initialContent);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <div className="review-form" style={{ marginBottom: 12 }}>
+      <div className="field" style={{ marginBottom: 10 }}>
+        <label>修改打分</label>
+        <ScorePicker value={rating} onChange={setRating} />
+      </div>
+      <div className="field" style={{ marginBottom: 10 }}>
+        <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={2} />
+      </div>
+      {error && <div className="error-msg">{error}</div>}
+      <div style={{ display: "flex", gap: 10 }}>
+        <button className="btn secondary" onClick={onCancel} disabled={busy}>
+          取消
+        </button>
+        <button
+          className="btn"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              await onSave(rating, content.trim());
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "保存失败");
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "保存中 …" : "保存修改"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -199,7 +285,7 @@ function ReviewForm({ shopId, onDone }: { shopId: number; onDone: () => void }) 
 
   async function submit() {
     if (rating === 0) {
-      setError("先点星星打个分");
+      setError("先打个分（1-10 分）");
       return;
     }
     setBusy(true);
@@ -220,20 +306,8 @@ function ReviewForm({ shopId, onDone }: { shopId: number; onDone: () => void }) 
   return (
     <div className="review-form">
       <div className="field" style={{ marginBottom: 10 }}>
-        <label>盖个章 · 打分</label>
-        <div className="star-input">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <button
-              key={i}
-              type="button"
-              className={i <= rating ? "on" : ""}
-              onClick={() => setRating(i)}
-              aria-label={`${i} 星`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
+        <label>盖个章 · 打分（1-10 分）</label>
+        <ScorePicker value={rating} onChange={setRating} />
       </div>
       <div className="field" style={{ marginBottom: 0 }}>
         <textarea

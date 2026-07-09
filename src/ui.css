@@ -259,16 +259,6 @@ a {
 
 /* ---------- 评分 ---------- */
 
-.stars {
-  color: var(--stamp);
-  letter-spacing: 1px;
-  font-size: 15px;
-}
-
-.stars .off {
-  color: var(--line);
-}
-
 .rating-num {
   font-family: var(--mono);
   font-weight: 700;
@@ -276,23 +266,54 @@ a {
   font-size: 17px;
 }
 
-.star-input {
-  display: flex;
-  gap: 6px;
+.score-unit {
+  font-size: 12px;
+  margin-left: 1px;
+  font-family: var(--font);
 }
 
-.star-input button {
-  background: none;
-  border: none;
-  font-size: 30px;
-  color: var(--line);
+.score-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.score-picker-row button {
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  font-size: 22px;
+  font-weight: 700;
   cursor: pointer;
-  padding: 2px;
   line-height: 1;
 }
 
-.star-input button.on {
+.score-picker-row button:active {
+  border-color: var(--stamp);
   color: var(--stamp);
+}
+
+.score-value {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--stamp);
+  min-width: 90px;
+  text-align: center;
+}
+
+.score-value.unset {
+  color: var(--line);
+}
+
+.score-picker input[type="range"] {
+  width: 100%;
+  accent-color: var(--stamp);
+  height: 32px;
 }
 
 /* ---------- 首页列表 ---------- */

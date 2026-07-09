@@ -97,10 +97,33 @@ export const api = {
     note: string;
     amapUrl: string;
   }) => post<{ id: number }>("/api/shops", b),
+  updateShop: (
+    id: number,
+    b: {
+      name: string;
+      address: string;
+      lng: number | null;
+      lat: number | null;
+      category: string;
+      note: string;
+      amapUrl: string;
+    }
+  ) =>
+    request<{ ok: true }>(`/api/shops/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(b),
+    }),
   deleteShop: (id: number) => request<{ ok: true }>(`/api/shops/${id}`, { method: "DELETE" }),
 
   addReview: (shopId: number, b: { rating: number; content: string; photoKeys: string[] }) =>
     post<{ id: number }>(`/api/shops/${shopId}/reviews`, b),
+  updateReview: (id: number, b: { rating: number; content: string }) =>
+    request<{ ok: true }>(`/api/reviews/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(b),
+    }),
   deleteReview: (id: number) => request<{ ok: true }>(`/api/reviews/${id}`, { method: "DELETE" }),
 
   resolveShare: (text: string) => post<ResolvedPlace>("/api/resolve-share", { text }),

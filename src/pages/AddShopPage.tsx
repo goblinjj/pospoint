@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { api, CATEGORIES } from "../api";
 
 export default function AddShopPage() {
   const nav = useNavigate();
+  const { id } = useParams(); // 有 id 时是编辑既有店铺
+  const editing = id !== undefined;
   const [shareText, setShareText] = useState("");
   const [resolving, setResolving] = useState(false);
   const [resolveMsg, setResolveMsg] = useState("");
@@ -17,6 +19,21 @@ export default function AddShopPage() {
 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) return;
+    api
+      .shop(id!)
+      .then(({ shop }) => {
+        setName(shop.name);
+        setAddress(shop.address);
+        setCategory(shop.category);
+        setNote(shop.note);
+        setSourceUrl(shop.amap_url);
+        if (shop.lng !== null && shop.lat !== null) setCoords(`${shop.lng},${shop.lat}`);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"));
+  }, [editing, id]);
 
   async function resolve() {
     if (!shareText.trim()) return;
@@ -67,17 +84,23 @@ export default function AddShopPage() {
       return;
     }
     setSaving(true);
+    const payload = {
+      name: name.trim(),
+      address: address.trim(),
+      lng,
+      lat,
+      category,
+      note: note.trim(),
+      amapUrl: sourceUrl,
+    };
     try {
-      const res = await api.addShop({
-        name: name.trim(),
-        address: address.trim(),
-        lng,
-        lat,
-        category,
-        note: note.trim(),
-        amapUrl: sourceUrl,
-      });
-      nav(`/shop/${res.id}`, { replace: true });
+      if (editing) {
+        await api.updateShop(Number(id), payload);
+        nav(`/shop/${id}`, { replace: true });
+      } else {
+        const res = await api.addShop(payload);
+        nav(`/shop/${res.id}`, { replace: true });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
       setSaving(false);
@@ -90,7 +113,7 @@ export default function AddShopPage() {
         <button className="back-btn" onClick={() => nav(-1)}>
           ‹ 返回
         </button>
-        <h1>分享好店</h1>
+        <h1>{editing ? "编辑店铺" : "分享好店"}</h1>
       </header>
 
       <div className="page">
@@ -147,7 +170,7 @@ export default function AddShopPage() {
         </div>
 
         <button className="btn" onClick={save} disabled={saving}>
-          {saving ? "保存中 …" : "保存到饭点"}
+          {saving ? "保存中 …" : editing ? "保存修改" : "保存到饭点"}
         </button>
       </div>
     </>

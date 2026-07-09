@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, photoUrl, CATEGORIES, type ShopSummary } from "../api";
 import { wgs84ToGcj02, distanceKm, fmtDistance } from "../geo";
-import { Stars } from "../App";
+import { Score } from "../App";
 
 type GeoState = { status: "pending" | "ok" | "denied"; lng?: number; lat?: number };
 
@@ -107,7 +107,7 @@ export default function HomePage() {
                     <span className="cat-label">{s.category}</span>
                     {s.avg_rating !== null ? (
                       <>
-                        <Stars rating={s.avg_rating} />
+                        <Score value={s.avg_rating} />
                         <span>{s.review_count} 条评价</span>
                       </>
                     ) : (

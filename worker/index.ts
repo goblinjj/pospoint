@@ -256,6 +256,47 @@ app.get("/api/shops/:id", async (c) => {
   return c.json({ shop, reviews: reviews.results, photos: photos.results });
 });
 
+app.put("/api/shops/:id", async (c) => {
+  const u = c.get("user");
+  const id = Number(c.req.param("id"));
+  const shop = await c.env.DB.prepare(`SELECT created_by FROM shops WHERE id = ?`)
+    .bind(id)
+    .first<{ created_by: number }>();
+  if (!shop) return c.json({ error: "店铺不存在" }, 404);
+  if (shop.created_by !== u.id && !u.is_admin) return c.json({ error: "只有添加者或管理员可以修改" }, 403);
+
+  const body = await c.req.json<{
+    name?: string;
+    address?: string;
+    lng?: number | null;
+    lat?: number | null;
+    category?: string;
+    note?: string;
+    amapUrl?: string;
+  }>();
+  const name = (body.name ?? "").trim();
+  if (!name || name.length > 60) return c.json({ error: "店名不能为空（60 字以内）" }, 400);
+  const category = CATEGORIES.includes(body.category ?? "") ? body.category! : "其他";
+  const lng = typeof body.lng === "number" && isFinite(body.lng) ? body.lng : null;
+  const lat = typeof body.lat === "number" && isFinite(body.lat) ? body.lat : null;
+
+  await c.env.DB.prepare(
+    `UPDATE shops SET name = ?, address = ?, lng = ?, lat = ?, category = ?, note = ?, amap_url = ? WHERE id = ?`
+  )
+    .bind(
+      name,
+      (body.address ?? "").trim().slice(0, 200),
+      lng,
+      lat,
+      category,
+      (body.note ?? "").trim().slice(0, 500),
+      (body.amapUrl ?? "").trim().slice(0, 500),
+      id
+    )
+    .run();
+  return c.json({ ok: true });
+});
+
 app.delete("/api/shops/:id", async (c) => {
   const u = c.get("user");
   const id = Number(c.req.param("id"));
@@ -283,8 +324,8 @@ app.post("/api/shops/:id/reviews", async (c) => {
   if (!shop) return c.json({ error: "店铺不存在" }, 404);
 
   const body = await c.req.json<{ rating?: number; content?: string; photoKeys?: string[] }>();
-  const rating = Math.round(body.rating ?? 0);
-  if (rating < 1 || rating > 5) return c.json({ error: "评分需在 1-5 星之间" }, 400);
+  const rating = Math.round((body.rating ?? 0) * 10) / 10;
+  if (!(rating >= 1 && rating <= 10)) return c.json({ error: "评分需在 1-10 分之间，支持一位小数" }, 400);
   const content = (body.content ?? "").trim().slice(0, 1000);
 
   const now = Date.now();
@@ -304,6 +345,26 @@ app.post("/api/shops/:id/reviews", async (c) => {
       .run();
   }
   return c.json({ id: reviewId });
+});
+
+app.put("/api/reviews/:id", async (c) => {
+  const u = c.get("user");
+  const id = Number(c.req.param("id"));
+  const review = await c.env.DB.prepare(`SELECT user_id FROM reviews WHERE id = ?`)
+    .bind(id)
+    .first<{ user_id: number }>();
+  if (!review) return c.json({ error: "评价不存在" }, 404);
+  if (review.user_id !== u.id) return c.json({ error: "只能修改自己的评价" }, 403);
+
+  const body = await c.req.json<{ rating?: number; content?: string }>();
+  const rating = Math.round((body.rating ?? 0) * 10) / 10;
+  if (!(rating >= 1 && rating <= 10)) return c.json({ error: "评分需在 1-10 分之间，支持一位小数" }, 400);
+  const content = (body.content ?? "").trim().slice(0, 1000);
+
+  await c.env.DB.prepare(`UPDATE reviews SET rating = ?, content = ? WHERE id = ?`)
+    .bind(rating, content, id)
+    .run();
+  return c.json({ ok: true });
 });
 
 app.delete("/api/reviews/:id", async (c) => {
