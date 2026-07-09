@@ -170,7 +170,7 @@ export default function AddShopPage() {
         </div>
 
         <button className="btn" onClick={save} disabled={saving}>
-          {saving ? "保存中 …" : editing ? "保存修改" : "保存到饭点"}
+          {saving ? "保存中 …" : editing ? "保存修改" : "保存到小众点评"}
         </button>
       </div>
     </>

@@ -26,7 +26,7 @@ export default function MePage() {
   }
 
   async function copy(code: string) {
-    const text = `来「饭点」看看我们圈子私藏的好店：${location.origin}\n邀请码：${code}`;
+    const text = `来「小众点评」看看我们圈子私藏的好店：${location.origin}\n邀请码：${code}`;
     try {
       await navigator.clipboard.writeText(text);
       alert("已复制邀请信息，发给朋友吧");

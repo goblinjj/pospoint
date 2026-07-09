@@ -48,10 +48,10 @@ export default function HomePage() {
     <>
       <header className="topbar">
         <div className="brand" aria-hidden>
-          饭点
+          小众点评
         </div>
         <h1>
-          饭点
+          小众点评
           <span className="sub">朋友们盖章推荐的地方</span>
         </h1>
         <Link className="topbar-link" to="/me">

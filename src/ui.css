@@ -1,4 +1,4 @@
-/* 「饭点」—— 小馆子价目表风格：白纸、重墨、价签黄、印章红 */
+/* 「小众点评」—— 小馆子价目表风格：白纸、重墨、价签黄、印章红 */
 
 :root {
   --paper: #f5f4ef;
@@ -631,6 +631,7 @@ a {
   color: var(--stamp);
   font-size: 30px;
   font-weight: 900;
+  line-height: 1.1;
   transform: rotate(-5deg);
   letter-spacing: 2px;
   margin-bottom: 16px;

@@ -41,7 +41,7 @@ export default function AuthPage({ onLogin }: { onLogin: (u: User) => void }) {
   return (
     <div className="auth-wrap">
       <div className="auth-brand">
-        <div className="stamp">饭点</div>
+        <div className="stamp">小众点评</div>
         <p>私 家 觅 食 地 图</p>
       </div>
 
@@ -92,7 +92,7 @@ export default function AuthPage({ onLogin }: { onLogin: (u: User) => void }) {
           </div>
         )}
         <button className="btn" disabled={busy}>
-          {busy ? "请稍候 …" : mode === "login" ? "进入饭点" : "注册并进入"}
+          {busy ? "请稍候 …" : mode === "login" ? "进入小众点评" : "注册并进入"}
         </button>
       </form>
 

@@ -27,7 +27,7 @@ export default function App() {
       .finally(() => setChecking(false));
   }, []);
 
-  if (checking) return <div className="loading">饭点加载中 …</div>;
+  if (checking) return <div className="loading">小众点评加载中 …</div>;
   if (!user) return <AuthPage onLogin={setUser} />;
 
   return (
