@@ -12,8 +12,8 @@ export default function MePage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.invites().then(setInvites).catch(() => {});
-  }, []);
+    if (user.isAdmin) api.invites().then(setInvites).catch(() => {});
+  }, [user.isAdmin]);
 
   async function createInvite() {
     setBusy(true);
@@ -61,6 +61,7 @@ export default function MePage() {
           </div>
         </div>
 
+        {user.isAdmin && (
         <div className="card">
           <div className="section-title" style={{ margin: "0 0 4px" }}>
             邀请朋友
@@ -89,6 +90,7 @@ export default function MePage() {
             </button>
           </div>
         </div>
+        )}
 
         <div style={{ marginTop: 24 }}>
           <button className="btn secondary" onClick={logout}>

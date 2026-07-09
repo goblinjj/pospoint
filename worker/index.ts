@@ -154,6 +154,7 @@ app.get("/api/me", (c) => {
 
 app.post("/api/invites", async (c) => {
   const u = c.get("user");
+  if (!u.is_admin) return c.json({ error: "只有管理员可以生成邀请码" }, 403);
   const code = inviteCode();
   await c.env.DB.prepare(`INSERT INTO invite_codes (code, created_by, created_at) VALUES (?, ?, ?)`)
     .bind(code, u.id, Date.now())
