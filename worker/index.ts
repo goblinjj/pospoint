@@ -84,7 +84,8 @@ app.post("/api/auth/register", async (c) => {
   const password = body.password ?? "";
   const invite = (body.invite ?? "").trim().toUpperCase();
 
-  if (!/^[a-z0-9_]{2,20}$/.test(username)) return c.json({ error: "用户名需为 2-20 位字母、数字或下划线" }, 400);
+  if (!/^[a-z0-9_一-龥]{2,20}$/.test(username))
+    return c.json({ error: "用户名需为 2-20 位中文、字母、数字或下划线" }, 400);
   if (nickname.length < 1 || nickname.length > 20) return c.json({ error: "昵称需为 1-20 个字" }, 400);
   if (password.length < 6) return c.json({ error: "密码至少 6 位" }, 400);
 

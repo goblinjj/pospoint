@@ -55,7 +55,7 @@ export default function AuthPage({ onLogin }: { onLogin: (u: User) => void }) {
 
       <form onSubmit={submit}>
         <div className="field">
-          <label>用户名</label>
+          <label>用户名（登录用，中文、字母、数字均可）</label>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
