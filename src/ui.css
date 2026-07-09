@@ -471,6 +471,20 @@ a {
   font-size: 15px;
 }
 
+.alt-maps {
+  font-size: 13px;
+  color: var(--muted);
+  margin: -6px 0 14px;
+}
+
+.alt-maps a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 2px;
+}
+
 .coords {
   font-family: var(--mono);
   font-size: 12px;

@@ -96,11 +96,11 @@ export default function AddShopPage() {
       <div className="page">
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="field" style={{ marginBottom: 10 }}>
-            <label>从高德地图粘贴</label>
+            <label>从地图 App 粘贴（高德 / 腾讯 / 百度）</label>
             <textarea
               value={shareText}
               onChange={(e) => setShareText(e.target.value)}
-              placeholder={"在高德地图找到店铺 → 分享 → 复制链接，\n把复制的内容整段粘贴到这里"}
+              placeholder={"在地图 App 里找到店铺 → 分享 → 复制链接，\n把复制的内容整段粘贴到这里"}
               rows={3}
             />
           </div>

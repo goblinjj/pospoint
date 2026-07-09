@@ -39,6 +39,13 @@ export default function ShopPage() {
   const navUrl = hasCoords
     ? `https://uri.amap.com/navigation?to=${shop.lng},${shop.lat},${encName}&coordinate=gaode&callnative=1`
     : null;
+  // 腾讯用 GCJ-02（同高德）；百度 URI 支持 coord_type=gcj02，由它自己转 BD-09
+  const qqUrl = hasCoords
+    ? `https://apis.map.qq.com/uri/v1/marker?marker=coord:${shop.lat},${shop.lng};title:${encName};addr:${encodeURIComponent(shop.address || shop.name)}&referer=pospoint`
+    : null;
+  const baiduUrl = hasCoords
+    ? `https://api.map.baidu.com/marker?location=${shop.lat},${shop.lng}&title=${encName}&content=${encodeURIComponent(shop.address || shop.name)}&coord_type=gcj02&output=html&src=pospoint`
+    : null;
 
   async function deleteShop() {
     if (!confirm(`确定删除「${shop.name}」？所有评价和照片会一并删除。`)) return;
@@ -93,6 +100,18 @@ export default function ShopPage() {
             </a>
           )}
         </div>
+        {qqUrl && baiduUrl && (
+          <p className="alt-maps">
+            也可以用：
+            <a href={qqUrl} target="_blank" rel="noreferrer">
+              腾讯地图
+            </a>
+            <span aria-hidden> · </span>
+            <a href={baiduUrl} target="_blank" rel="noreferrer">
+              百度地图
+            </a>
+          </p>
+        )}
         {!hasCoords && <p className="hint" style={{ marginBottom: 16 }}>这家店没有坐标，无法唤起地图。</p>}
         {hasCoords && (
           <p className="coords">

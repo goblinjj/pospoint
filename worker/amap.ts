@@ -1,6 +1,7 @@
-// 解析从高德地图 App「分享地点」得到的文本/链接，提取店名、地址和 GCJ-02 坐标。
-// 高德分享链接形态多变（surl.amap.com 短链、wb.amap.com?p=…、amap.com/place/…），
-// 这里逐跳跟随重定向，对每一跳的 URL 和最终页面 HTML 依次尝试多种提取方式，尽力而为；
+// 解析从地图 App「分享地点」得到的文本/链接，提取店名、地址和 GCJ-02 坐标。
+// 支持高德（surl.amap.com 短链、wb.amap.com?p=…）、腾讯（apis.map.qq.com、map.qq.com）、
+// 百度（j.map.baidu.com 短链等，坐标为 BD-09，解析后转成 GCJ-02）。
+// 逐跳跟随重定向，对每一跳的 URL 和最终页面 HTML 依次尝试多种提取方式，尽力而为；
 // 解析不全时由前端让用户手动补填。
 
 export interface ResolvedPlace {
@@ -22,7 +23,33 @@ function pickCoords(a: number, b: number): { lng: number; lat: number } | null {
   return null;
 }
 
+// 百度地图用 BD-09 坐标系，入库前统一转成 GCJ-02
+function bd09ToGcj02(bdLng: number, bdLat: number): { lng: number; lat: number } {
+  const X_PI = (Math.PI * 3000.0) / 180.0;
+  const x = bdLng - 0.0065;
+  const y = bdLat - 0.006;
+  const z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * X_PI);
+  const theta = Math.atan2(y, x) - 0.000003 * Math.cos(x * X_PI);
+  return { lng: z * Math.cos(theta), lat: z * Math.sin(theta) };
+}
+
+function isBaiduUrl(raw: string): boolean {
+  try {
+    return new URL(raw).hostname.endsWith("baidu.com");
+  } catch {
+    return false;
+  }
+}
+
+function setCoords(out: ResolvedPlace, c: { lng: number; lat: number }, fromBaidu: boolean): void {
+  if (out.lng !== null) return;
+  const fixed = fromBaidu ? bd09ToGcj02(c.lng, c.lat) : c;
+  out.lng = fixed.lng;
+  out.lat = fixed.lat;
+}
+
 function tryParseUrl(raw: string, out: ResolvedPlace): void {
+  const fromBaidu = isBaiduUrl(raw);
   let u: URL;
   try {
     u = new URL(raw);
@@ -39,17 +66,36 @@ function tryParseUrl(raw: string, out: ResolvedPlace): void {
       const n1 = parseFloat(parts[1]);
       const n2 = parseFloat(parts[2]);
       const c = pickCoords(n1, n2);
-      if (c) {
-        out.lng = out.lng ?? c.lng;
-        out.lat = out.lat ?? c.lat;
-      }
+      if (c) setCoords(out, c, fromBaidu);
       if (parts[3] && !out.name) out.name = decodeURIComponent(parts[3]);
       if (parts[4] && !out.address) out.address = decodeURIComponent(parts.slice(4).join(","));
     }
   }
 
-  // position=经度,纬度 / q=纬度,经度,店名
-  for (const key of ["position", "q", "to", "dest"]) {
+  // 腾讯地图 URI：marker=coord:纬度,经度;title:店名;addr:地址
+  const marker = params.get("marker");
+  if (marker) {
+    const cm = marker.match(/coord:([0-9.]+),([0-9.]+)/);
+    if (cm) {
+      const c = pickCoords(parseFloat(cm[1]), parseFloat(cm[2]));
+      if (c) setCoords(out, c, fromBaidu);
+    }
+    const tm = marker.match(/title:([^;]+)/);
+    if (tm && !out.name) out.name = decodeURIComponent(tm[1]);
+    const am = marker.match(/addr:([^;]+)/);
+    if (am && !out.address) out.address = decodeURIComponent(am[1]);
+  }
+
+  // 腾讯地图网页版：pointx=经度 pointy=纬度
+  const pointx = params.get("pointx");
+  const pointy = params.get("pointy");
+  if (pointx && pointy) {
+    const c = pickCoords(parseFloat(pointx), parseFloat(pointy));
+    if (c) setCoords(out, c, fromBaidu);
+  }
+
+  // position=经度,纬度 / q=纬度,经度,店名 / 百度 location=纬度,经度 / center=…
+  for (const key of ["position", "q", "to", "dest", "location", "center", "destination"]) {
     const v = params.get(key);
     if (!v) continue;
     const parts = v.split(",");
@@ -57,10 +103,7 @@ function tryParseUrl(raw: string, out: ResolvedPlace): void {
       const n1 = parseFloat(parts[0]);
       const n2 = parseFloat(parts[1]);
       const c = pickCoords(n1, n2);
-      if (c && out.lng === null) {
-        out.lng = c.lng;
-        out.lat = c.lat;
-      }
+      if (c) setCoords(out, c, fromBaidu);
       if (parts[2] && !out.name && isNaN(parseFloat(parts[2]))) {
         out.name = decodeURIComponent(parts[2]);
       }
@@ -69,12 +112,9 @@ function tryParseUrl(raw: string, out: ResolvedPlace): void {
 
   const lat = params.get("lat");
   const lng = params.get("lng") ?? params.get("lon");
-  if (lat && lng && out.lng === null) {
+  if (lat && lng) {
     const c = pickCoords(parseFloat(lng), parseFloat(lat));
-    if (c) {
-      out.lng = c.lng;
-      out.lat = c.lat;
-    }
+    if (c) setCoords(out, c, fromBaidu);
   }
   const name = params.get("name");
   if (name && !out.name) out.name = name;
@@ -82,29 +122,21 @@ function tryParseUrl(raw: string, out: ResolvedPlace): void {
   if (addr && !out.address) out.address = addr;
 }
 
-function tryParseHtml(html: string, out: ResolvedPlace): void {
+function tryParseHtml(html: string, out: ResolvedPlace, fromBaidu: boolean): void {
   if (out.lng === null) {
     const m =
       html.match(/"lng"\s*:\s*"?(1[0-9]{2}\.[0-9]+|[7-9][0-9]\.[0-9]+)"?\s*,\s*"lat"\s*:\s*"?([1-5]?[0-9]\.[0-9]+)"?/) ??
       html.match(/"lat"\s*:\s*"?([1-5]?[0-9]\.[0-9]+)"?\s*,\s*"lng"\s*:\s*"?(1[0-9]{2}\.[0-9]+|[7-9][0-9]\.[0-9]+)"?/);
     if (m) {
-      const a = parseFloat(m[1]);
-      const b = parseFloat(m[2]);
-      const c = pickCoords(a, b);
-      if (c) {
-        out.lng = c.lng;
-        out.lat = c.lat;
-      }
+      const c = pickCoords(parseFloat(m[1]), parseFloat(m[2]));
+      if (c) setCoords(out, c, fromBaidu);
     }
   }
   if (out.lng === null) {
     const m = html.match(/"location"\s*:\s*"([0-9.]+),([0-9.]+)"/);
     if (m) {
       const c = pickCoords(parseFloat(m[1]), parseFloat(m[2]));
-      if (c) {
-        out.lng = c.lng;
-        out.lat = c.lat;
-      }
+      if (c) setCoords(out, c, fromBaidu);
     }
   }
   if (!out.name) {
@@ -135,7 +167,8 @@ export async function resolveShareText(text: string): Promise<ResolvedPlace> {
     }
   }
 
-  const urlMatch = text.match(/https?:\/\/[^\s"'，。;；]+/);
+  // 注意：不能把半角分号当结束符，腾讯地图 URI 用 ; 分隔 marker 参数
+  const urlMatch = text.match(/https?:\/\/[^\s"'，。；]+/);
   if (!urlMatch) return out;
 
   let current = urlMatch[0];
@@ -165,7 +198,7 @@ export async function resolveShareText(text: string): Promise<ResolvedPlace> {
     if (res.ok && (out.lng === null || !out.name)) {
       try {
         const html = (await res.text()).slice(0, 500_000);
-        tryParseHtml(html, out);
+        tryParseHtml(html, out, isBaiduUrl(current));
       } catch {
         // 忽略，尽力而为
       }
