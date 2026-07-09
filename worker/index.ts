@@ -178,7 +178,28 @@ app.get("/api/invites", async (c) => {
 
 const CATEGORIES = ["餐馆", "小吃", "咖啡茶饮", "酒吧", "甜品", "玩乐", "其他"];
 
+// 传入 lng/lat（GCJ-02）时按距离由近及远排序（无坐标的店排最后），否则按最新添加排序。
+// 距离用等距近似（纬差² + 经差²·cos²lat），cos² 在 JS 里算好传进 SQL，排序足够准。
 app.get("/api/shops", async (c) => {
+  const q = c.req.query();
+  const lng = q.lng ? Number(q.lng) : NaN;
+  const lat = q.lat ? Number(q.lat) : NaN;
+  const hasCoords = isFinite(lng) && isFinite(lat);
+  const category = CATEGORIES.includes(q.category ?? "") ? q.category! : null;
+  const limit = Math.min(Math.max(Number(q.limit) || 20, 1), 50);
+  const offset = Math.max(Number(q.offset) || 0, 0);
+
+  const where = category ? `WHERE s.category = ?` : "";
+  const binds: unknown[] = category ? [category] : [];
+  let orderBy = `s.id DESC`;
+  if (hasCoords) {
+    orderBy = `(s.lng IS NULL OR s.lat IS NULL) ASC,
+               ((s.lat - ?) * (s.lat - ?) + (s.lng - ?) * (s.lng - ?) * ?) ASC,
+               s.id DESC`;
+    binds.push(lat, lat, lng, lng, Math.cos((lat * Math.PI) / 180) ** 2);
+  }
+  binds.push(limit + 1, offset);
+
   const rows = await c.env.DB.prepare(
     `SELECT s.id, s.name, s.address, s.lng, s.lat, s.category, s.note, s.created_at,
             u.nickname AS creator_nickname,
@@ -186,9 +207,15 @@ app.get("/api/shops", async (c) => {
             (SELECT AVG(r.rating) FROM reviews r WHERE r.shop_id = s.id) AS avg_rating,
             (SELECT p.r2_key FROM photos p WHERE p.shop_id = s.id ORDER BY p.id DESC LIMIT 1) AS cover_key
      FROM shops s JOIN users u ON u.id = s.created_by
-     ORDER BY s.id DESC`
-  ).all();
-  return c.json(rows.results);
+     ${where}
+     ORDER BY ${orderBy}
+     LIMIT ? OFFSET ?`
+  )
+    .bind(...binds)
+    .all();
+
+  const items = rows.results.slice(0, limit);
+  return c.json({ items, hasMore: rows.results.length > limit });
 });
 
 app.post("/api/shops", async (c) => {

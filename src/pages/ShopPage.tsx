@@ -11,6 +11,7 @@ export default function ShopPage() {
   const [data, setData] = useState<ShopDetail | null>(null);
   const [error, setError] = useState("");
   const [editingReview, setEditingReview] = useState<number | null>(null);
+  const [mapSheetOpen, setMapSheetOpen] = useState(false);
 
   const load = useCallback(() => {
     api
@@ -33,21 +34,46 @@ export default function ShopPage() {
   const hasCoords = shop.lng !== null && shop.lat !== null;
   const canEditShop = shop.created_by === user.id || user.isAdmin;
   const encName = encodeURIComponent(shop.name);
+  const encAddr = encodeURIComponent(shop.address || shop.name);
 
-  // 高德 URI API：手机上会直接唤起高德 App，没装则打开网页版
-  const markerUrl = hasCoords
-    ? `https://uri.amap.com/marker?position=${shop.lng},${shop.lat}&name=${encName}&src=pospoint&coordinate=gaode&callnative=1`
-    : shop.amap_url || null;
-  const navUrl = hasCoords
-    ? `https://uri.amap.com/navigation?to=${shop.lng},${shop.lat},${encName}&coordinate=gaode&callnative=1`
-    : null;
-  // 腾讯用 GCJ-02（同高德）；百度 URI 支持 coord_type=gcj02，由它自己转 BD-09
-  const qqUrl = hasCoords
-    ? `https://apis.map.qq.com/uri/v1/marker?marker=coord:${shop.lat},${shop.lng};title:${encName};addr:${encodeURIComponent(shop.address || shop.name)}&referer=pospoint`
-    : null;
-  const baiduUrl = hasCoords
-    ? `https://api.map.baidu.com/marker?location=${shop.lat},${shop.lng}&title=${encName}&content=${encodeURIComponent(shop.address || shop.name)}&coord_type=gcj02&output=html&src=pospoint`
-    : null;
+  const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+  const isMobile = isIOS || /Android|HarmonyOS|Mobile/i.test(navigator.userAgent);
+
+  // 每项：先试 URL Scheme 直接唤起 App，没装（页面没被切到后台）再退回网页版。
+  // 坐标统一是 GCJ-02：高德、腾讯直接用；百度 scheme/网页都传 coord_type=gcj02 由它自己转 BD-09。
+  const mapApps = hasCoords
+    ? [
+        {
+          name: "高德地图",
+          scheme: `${isIOS ? "iosamap" : "androidamap"}://viewMap?sourceApplication=pospoint&poiname=${encName}&lat=${shop.lat}&lon=${shop.lng}&dev=0`,
+          web: `https://uri.amap.com/marker?position=${shop.lng},${shop.lat}&name=${encName}&src=pospoint&coordinate=gaode&callnative=1`,
+        },
+        {
+          name: "百度地图",
+          scheme: `baidumap://map/marker?location=${shop.lat},${shop.lng}&title=${encName}&content=${encAddr}&coord_type=gcj02&src=pospoint`,
+          web: `https://api.map.baidu.com/marker?location=${shop.lat},${shop.lng}&title=${encName}&content=${encAddr}&coord_type=gcj02&output=html&src=pospoint`,
+        },
+        {
+          name: "腾讯地图",
+          scheme: `qqmap://map/marker?marker=coord:${shop.lat},${shop.lng};title:${encName};addr:${encAddr}&referer=pospoint`,
+          web: `https://apis.map.qq.com/uri/v1/marker?marker=coord:${shop.lat},${shop.lng};title:${encName};addr:${encAddr}&referer=pospoint`,
+        },
+      ]
+    : [];
+
+  function openMap(app: { scheme: string; web: string }) {
+    setMapSheetOpen(false);
+    if (!isMobile) {
+      // 桌面浏览器没有地图 App，直接开网页版
+      window.open(app.web, "_blank", "noopener");
+      return;
+    }
+    window.location.href = app.scheme;
+    setTimeout(() => {
+      // 唤起成功时页面会被切到后台（hidden），仍可见说明没装 App
+      if (document.visibilityState === "visible") window.open(app.web, "_blank", "noopener");
+    }, 1800);
+  }
 
   async function deleteShop() {
     if (!confirm(`确定删除「${shop.name}」？所有评价和照片会一并删除。`)) return;
@@ -99,29 +125,17 @@ export default function ShopPage() {
         </div>
 
         <div className="map-actions">
-          {markerUrl && (
-            <a className="btn amap" href={markerUrl} target="_blank" rel="noreferrer">
+          {hasCoords && (
+            <button className="btn amap" onClick={() => setMapSheetOpen(true)}>
+              使用地图打开
+            </button>
+          )}
+          {!hasCoords && shop.amap_url && (
+            <a className="btn amap" href={shop.amap_url} target="_blank" rel="noreferrer">
               在高德地图打开
             </a>
           )}
-          {navUrl && (
-            <a className="btn" href={navUrl} target="_blank" rel="noreferrer">
-              导航去这里
-            </a>
-          )}
         </div>
-        {qqUrl && baiduUrl && (
-          <p className="alt-maps">
-            也可以用：
-            <a href={qqUrl} target="_blank" rel="noreferrer">
-              腾讯地图
-            </a>
-            <span aria-hidden> · </span>
-            <a href={baiduUrl} target="_blank" rel="noreferrer">
-              百度地图
-            </a>
-          </p>
-        )}
         {!hasCoords && <p className="hint" style={{ marginBottom: 16 }}>这家店没有坐标，无法唤起地图。</p>}
         {hasCoords && (
           <p className="coords">
@@ -201,6 +215,22 @@ export default function ShopPage() {
           </div>
         )}
       </div>
+
+      {mapSheetOpen && (
+        <div className="sheet-mask" onClick={() => setMapSheetOpen(false)}>
+          <div className="sheet" role="dialog" aria-label="选择地图" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title">用哪个地图打开？</div>
+            {mapApps.map((app) => (
+              <button key={app.name} className="sheet-item" onClick={() => openMap(app)}>
+                {app.name}
+              </button>
+            ))}
+            <button className="sheet-item cancel" onClick={() => setMapSheetOpen(false)}>
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

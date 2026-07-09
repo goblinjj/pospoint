@@ -361,6 +361,10 @@ a {
   padding: 0 16px;
 }
 
+.load-more {
+  height: 1px;
+}
+
 .shop-card {
   display: flex;
   gap: 12px;
@@ -492,18 +496,68 @@ a {
   font-size: 15px;
 }
 
-.alt-maps {
-  font-size: 13px;
-  color: var(--muted);
-  margin: -6px 0 14px;
+/* ---------- 底部弹层（选地图） ---------- */
+
+.sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(26, 24, 20, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
-.alt-maps a {
-  color: var(--ink);
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  background: var(--paper);
+  border-radius: 18px 18px 0 0;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  animation: sheet-up 0.22s ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-title {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 4px 0 12px;
+}
+
+.sheet-item {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 16px;
   font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 4px 2px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sheet-item:active {
+  border-color: var(--stamp);
+  color: var(--stamp);
+}
+
+.sheet-item.cancel {
+  margin-top: 4px;
+  margin-bottom: 0;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .coords {

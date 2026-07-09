@@ -86,7 +86,18 @@ export const api = {
   login: (b: { username: string; password: string }) => post<User>("/api/auth/login", b),
   logout: () => post<{ ok: true }>("/api/auth/logout", {}),
 
-  shops: () => request<ShopSummary[]>("/api/shops"),
+  shops: (p: { lng?: number; lat?: number; category?: string; offset?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.lng !== undefined && p.lat !== undefined) {
+      qs.set("lng", String(p.lng));
+      qs.set("lat", String(p.lat));
+    }
+    if (p.category) qs.set("category", p.category);
+    if (p.offset) qs.set("offset", String(p.offset));
+    if (p.limit) qs.set("limit", String(p.limit));
+    const s = qs.toString();
+    return request<{ items: ShopSummary[]; hasMore: boolean }>(`/api/shops${s ? `?${s}` : ""}`);
+  },
   shop: (id: number | string) => request<ShopDetail>(`/api/shops/${id}`),
   addShop: (b: {
     name: string;
