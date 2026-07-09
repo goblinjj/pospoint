@@ -13,7 +13,7 @@ export default function AddShopPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState(""); // "经度,纬度"
-  const [category, setCategory] = useState("餐馆");
+  const [category, setCategory] = useState("吃喝");
   const [note, setNote] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
 

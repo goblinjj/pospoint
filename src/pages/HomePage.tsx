@@ -13,7 +13,7 @@ export default function HomePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [geo, setGeo] = useState<GeoState>({ status: "pending" });
-  const [category, setCategory] = useState("全部");
+  const [filter, setFilter] = useState("全部");
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -34,10 +34,11 @@ export default function HomePage() {
   const baseParams = {
     lng: geo.status === "ok" ? geo.lng : undefined,
     lat: geo.status === "ok" ? geo.lat : undefined,
-    category: category === "全部" ? undefined : category,
+    category: CATEGORIES.includes(filter) ? filter : undefined,
+    mine: filter === "我的" || undefined,
   };
   // 定位从 pending 变 denied 时查询条件不变，靠 queryKey 避免重复请求
-  const queryKey = `${baseParams.lng ?? ""},${baseParams.lat ?? ""}|${category}`;
+  const queryKey = `${baseParams.lng ?? ""},${baseParams.lat ?? ""}|${filter}`;
   const activeKey = useRef("");
 
   useEffect(() => {
@@ -106,8 +107,8 @@ export default function HomePage() {
       </header>
 
       <div className="filter-row">
-        {["全部", ...CATEGORIES].map((c) => (
-          <button key={c} className={`chip ${category === c ? "on" : ""}`} onClick={() => setCategory(c)}>
+        {["全部", ...CATEGORIES, "我的"].map((c) => (
+          <button key={c} className={`chip ${filter === c ? "on" : ""}`} onClick={() => setFilter(c)}>
             {c}
           </button>
         ))}

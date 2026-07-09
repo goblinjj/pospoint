@@ -176,7 +176,7 @@ app.get("/api/invites", async (c) => {
 
 // ---------- 店铺 ----------
 
-const CATEGORIES = ["餐馆", "小吃", "咖啡茶饮", "酒吧", "甜品", "玩乐", "其他"];
+const CATEGORIES = ["吃喝", "玩乐"];
 
 // 传入 lng/lat（GCJ-02）时按距离由近及远排序（无坐标的店排最后），否则按最新添加排序。
 // 距离用等距近似（纬差² + 经差²·cos²lat），cos² 在 JS 里算好传进 SQL，排序足够准。
@@ -186,11 +186,21 @@ app.get("/api/shops", async (c) => {
   const lat = q.lat ? Number(q.lat) : NaN;
   const hasCoords = isFinite(lng) && isFinite(lat);
   const category = CATEGORIES.includes(q.category ?? "") ? q.category! : null;
+  const mine = q.mine === "1";
   const limit = Math.min(Math.max(Number(q.limit) || 20, 1), 50);
   const offset = Math.max(Number(q.offset) || 0, 0);
 
-  const where = category ? `WHERE s.category = ?` : "";
-  const binds: unknown[] = category ? [category] : [];
+  const wheres: string[] = [];
+  const binds: unknown[] = [];
+  if (category) {
+    wheres.push(`s.category = ?`);
+    binds.push(category);
+  }
+  if (mine) {
+    wheres.push(`s.created_by = ?`);
+    binds.push(c.get("user").id);
+  }
+  const where = wheres.length ? `WHERE ${wheres.join(" AND ")}` : "";
   let orderBy = `s.id DESC`;
   if (hasCoords) {
     orderBy = `(s.lng IS NULL OR s.lat IS NULL) ASC,
@@ -231,7 +241,7 @@ app.post("/api/shops", async (c) => {
   }>();
   const name = (body.name ?? "").trim();
   if (!name || name.length > 60) return c.json({ error: "店名不能为空（60 字以内）" }, 400);
-  const category = CATEGORIES.includes(body.category ?? "") ? body.category! : "其他";
+  const category = CATEGORIES.includes(body.category ?? "") ? body.category! : "吃喝";
   const lng = typeof body.lng === "number" && isFinite(body.lng) ? body.lng : null;
   const lat = typeof body.lat === "number" && isFinite(body.lat) ? body.lat : null;
 
@@ -303,7 +313,7 @@ app.put("/api/shops/:id", async (c) => {
   }>();
   const name = (body.name ?? "").trim();
   if (!name || name.length > 60) return c.json({ error: "店名不能为空（60 字以内）" }, 400);
-  const category = CATEGORIES.includes(body.category ?? "") ? body.category! : "其他";
+  const category = CATEGORIES.includes(body.category ?? "") ? body.category! : "吃喝";
   const lng = typeof body.lng === "number" && isFinite(body.lng) ? body.lng : null;
   const lat = typeof body.lat === "number" && isFinite(body.lat) ? body.lat : null;
 

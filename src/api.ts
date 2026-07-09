@@ -86,13 +86,14 @@ export const api = {
   login: (b: { username: string; password: string }) => post<User>("/api/auth/login", b),
   logout: () => post<{ ok: true }>("/api/auth/logout", {}),
 
-  shops: (p: { lng?: number; lat?: number; category?: string; offset?: number; limit?: number } = {}) => {
+  shops: (p: { lng?: number; lat?: number; category?: string; mine?: boolean; offset?: number; limit?: number } = {}) => {
     const qs = new URLSearchParams();
     if (p.lng !== undefined && p.lat !== undefined) {
       qs.set("lng", String(p.lng));
       qs.set("lat", String(p.lat));
     }
     if (p.category) qs.set("category", p.category);
+    if (p.mine) qs.set("mine", "1");
     if (p.offset) qs.set("offset", String(p.offset));
     if (p.limit) qs.set("limit", String(p.limit));
     const s = qs.toString();
@@ -155,7 +156,7 @@ export const api = {
   },
 };
 
-export const CATEGORIES = ["餐馆", "小吃", "咖啡茶饮", "酒吧", "甜品", "玩乐", "其他"];
+export const CATEGORIES = ["吃喝", "玩乐"];
 
 export function photoUrl(key: string): string {
   return `/api/photos/${key}`;

@@ -32,7 +32,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
       address TEXT NOT NULL DEFAULT '',
       lng REAL,
       lat REAL,
-      category TEXT NOT NULL DEFAULT '其他',
+      category TEXT NOT NULL DEFAULT '吃喝',
       note TEXT NOT NULL DEFAULT '',
       amap_url TEXT NOT NULL DEFAULT '',
       created_by INTEGER NOT NULL,
@@ -54,6 +54,8 @@ export async function ensureSchema(db: D1Database): Promise<void> {
       r2_key TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )`),
+    // 2026-07-09 分类从 7 类收成「吃喝 / 玩乐」两类，老数据除玩乐外全部归入吃喝
+    db.prepare(`UPDATE shops SET category = '吃喝' WHERE category NOT IN ('吃喝', '玩乐')`),
   ]);
   ensured = true;
 }
